@@ -17,7 +17,7 @@ There is no database or persistent Docker volume to provision.
 ## Quick install
 
 ```bash
-git clone https://github.com/fal-ai-community/audio-studio.git
+git clone https://github.com/egebese/audio-studio.git
 cd audio-studio
 ./install.sh
 ```
@@ -114,7 +114,7 @@ and pins `numInstances` to one. Enter `FAL_KEY` and a strong
 ### Railway
 
 Create a service from
-`https://github.com/fal-ai-community/audio-studio`. `railway.json` selects the
+`https://github.com/egebese/audio-studio`. `railway.json` selects the
 Dockerfile, `/api/health`, and one replica. Add `FAL_KEY`,
 `STUDIO_PASSWORD`, and a random 32-byte `STUDIO_SESSION_SECRET` in Railway's
 Variables panel. Keep application sleeping and scale-to-zero disabled.
