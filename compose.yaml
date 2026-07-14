@@ -1,0 +1,21 @@
+services:
+  audio-studio:
+    image: ghcr.io/fal-ai-community/audio-studio:${AUDIO_STUDIO_VERSION:-latest}
+    build: .
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s

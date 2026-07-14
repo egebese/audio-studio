@@ -1,0 +1,44 @@
+{
+  "preview_hero-liftoff": {
+    "persona": "★ Marketing hero — \"LIFTOFF\"",
+    "goal": "Prove that a cinematic, multi-voice, orchestral scene can be built in 38 seconds from plain text prompts",
+    "shows": ["Seed multi-voice scene + SFX", "Orchestral score (Stable Audio)", "Powered-by-fal bookend", "\"Written, not recorded\""],
+    "steps": ["Play from the top: 'powered by fal' intro → control room → countdown → liftoff roar → the astronaut's quiet beat → 'written, not recorded' close", "Solo the 'Score' track to hear the orchestra under the scene", "Remember: every sound here was generated from a single text prompt"]
+  },
+  "preview_cine-trailer": {
+    "persona": "Movie trailer — epic fantasy",
+    "goal": "Cut a Hollywood fantasy trailer — booming VO, a hero/villain standoff, and a full orchestral build — entirely from text",
+    "shows": ["Seed multi-voice scene", "Trailer voice-over (Seed TTS)", "Epic orchestral score", "Score swells in the gaps"],
+    "steps": ["Play from the top: the ominous VO → the queen/warlord standoff → the title drop", "Solo the 'Score' track — hear it duck under the lines and swell into the braam impact", "It closes on 'not one word of this was ever spoken aloud'"]
+  },
+  "preview_cine-brand": {
+    "persona": "Brand commercial — premium car",
+    "goal": "Produce an emotional 30-second premium spot — intimate VO over a swelling cinematic bed — from a single line",
+    "shows": ["Intimate VO (Seed TTS)", "Emotional orchestral bed", "Subtle foley (Eleven SFX)", "Ducked, premium mix"],
+    "steps": ["Play the spot top to bottom", "Solo the 'Voiceover' then the 'Score' to hear the balance", "It closes on 'this voice was never recorded… powered by fal'"]
+  },
+  "preview_cine-nature": {
+    "persona": "Nature documentary — Serengeti",
+    "goal": "Narrate a wildlife documentary — an Attenborough-style voice over a living savanna soundscape — made from text",
+    "shows": ["Documentary narration (Seed TTS)", "Savanna ambience bed (MMAudio)", "Sweeping orchestral swell", "Awe / calm dynamics"],
+    "steps": ["Play from first light to the held-breath beat", "Solo the 'Savanna ambience' bed to hear the world underneath the voice", "It reveals: 'nothing here was captured in the wild'"]
+  },
+  "preview_cine-noir": {
+    "persona": "Audio drama — noir detective",
+    "goal": "Stage a rain-soaked detective scene — inner monologue, a tense two-hander, jazz and foley — from prompts",
+    "shows": ["Detective monologue (Seed TTS)", "Two-voice scene (Seed)", "Noir jazz underscore", "Rain + room ambience"],
+    "steps": ["Play: the monologue → the office confrontation", "Solo the 'Rain / room' bed and the 'Score' to feel the mood", "It closes on 'every footstep, every word — written, not recorded'"]
+  },
+  "preview_cine-game": {
+    "persona": "Game cinematic — boss reveal",
+    "goal": "Score a video-game boss cutscene — a warrior against a titan, battle ambience, a title-card drop — all generated",
+    "shows": ["Warrior + titan scene (Seed)", "Arena ambience (MMAudio)", "Aggressive battle score", "Impact hit on the climax"],
+    "steps": ["Play through the standoff into the 'ASHFALL' title drop", "Solo the 'Score' — it stays big under the shout, then ducks for the tag", "Solo the 'Arena ambience' and 'Impact' layers"]
+  },
+  "preview_cine-calm": {
+    "persona": "Meditation / wellness",
+    "goal": "Guide a calm meditation — a soft, slow voice over a warm ambient pad and gentle surf — from a couple of lines",
+    "shows": ["Calm guide voice (Seed TTS)", "Long ambient music pad", "Ocean bed (MMAudio)", "Slow, spacious dynamics"],
+    "steps": ["Play it slowly, top to bottom, through the long breathing gaps", "Solo the 'Ocean bed' and the ambient 'Score'", "It closes on 'written, not recorded. Now, breathe.'"]
+  }
+}

@@ -8,3 +8,41 @@ coverage
 .env.local
 test-results
 playwright-report
+
+# Local agent and browser state
+.claude/
+.playwright-mcp/
+
+# Internal production tooling and archived media
+/promo/
+/scripts/
+/public/_archive/
+/docs/showcase-personas.md
+
+# Logs
+*.log
+/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Root-only screenshots, media, and generated output
+/*.gif
+/*.jpeg
+/*.jpg
+/*.mov
+/*.mp3
+/*.mp4
+/*.png
+/*.wav
+/*.webp
+/artifacts/
+/generated/
+/output/
+/outputs/
+
+# Required runtime demos remain public-export eligible
+!/public/featured/
+!/public/featured/**
+!/public/showcase*.json

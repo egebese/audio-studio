@@ -1,3 +1,4 @@
+import { replaceMentionsWithAudioTags } from "./mentions";
 import type { ModelDefinition } from "./model-catalog";
 import { coerceSchemaInput, getModelSchema } from "./model-schemas";
 import { regionToClipSeconds, regionToSourceSeconds } from "./region";
@@ -10,6 +11,11 @@ export interface PreparedSource {
   duration?: number;
 }
 
+export interface MentionVoiceRef {
+  name: string;
+  url: string;
+}
+
 export interface BuildModelRunInputOptions {
   model: ModelDefinition;
   values: Record<string, string | number | boolean>;
@@ -19,6 +25,8 @@ export interface BuildModelRunInputOptions {
   region?: Region;
   selectedVoice?: Voice;
   voiceAsset?: Asset;
+  /* Voices @mentioned in the prompt, in mention order (mapped to @Audio1..N). */
+  mentionVoices?: MentionVoiceRef[];
 }
 
 export interface BuildModelRunInputResult {
@@ -34,7 +42,8 @@ export function buildModelRunInput({
   selectedClip,
   region,
   selectedVoice,
-  voiceAsset
+  voiceAsset,
+  mentionVoices
 }: BuildModelRunInputOptions): BuildModelRunInputResult {
   const nextValues: Record<string, unknown> = { ...values };
   const schema = getModelSchema(model.id);
@@ -55,11 +64,28 @@ export function buildModelRunInput({
     if (source.duration !== undefined) input.source_duration_s = source.duration;
   }
 
+  // A cast is the selected voice (if any) followed by every @mentioned voice, in order.
+  // Cast Scene and the mention-based seed models consume these positionally as @Audio1..N.
+  const castRefs: Array<{ name: string; url: string }> = [];
   if (model.needsVoice && selectedVoice && voiceAsset) {
     input.target_voice_url = voiceAsset.url;
-    input.voices = [{ name: selectedVoice.name, ref_url: voiceAsset.url }];
     input.target_voice_duration_s = voiceAsset.duration;
-    if (model.id === "seed-cast-scene") input.audio_urls = [voiceAsset.url];
+    castRefs.push({ name: selectedVoice.name, url: voiceAsset.url });
+  }
+  for (const voice of mentionVoices ?? []) {
+    if (!castRefs.some((ref) => ref.url === voice.url)) castRefs.push({ name: voice.name, url: voice.url });
+  }
+
+  if (castRefs.length) {
+    input.voices = castRefs.map((ref) => ({ name: ref.name, ref_url: ref.url }));
+    // Voice Changer targets a single voice via target_voice_url; everyone else references positionally.
+    if (model.id !== "seed-voice-changer") input.audio_urls = castRefs.map((ref) => ref.url);
+    // Enhanced prompts already carry @AudioN tags from the LLM; raw prompts need the rewrite.
+    for (const key of ["prompt", "text"] as const) {
+      if (typeof input[key] === "string") {
+        input[key] = replaceMentionsWithAudioTags(input[key] as string, castRefs.map((ref) => ({ id: ref.url, name: ref.name })));
+      }
+    }
   }
 
   if (model.needsRegion && selectedClip && region) {

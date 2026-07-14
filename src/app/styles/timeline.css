@@ -1,0 +1,472 @@
+.timeline {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-rows: 34px 26px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.timeline-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border-bottom: 1px solid var(--border-visible);
+  padding: 0 var(--space-sm);
+  background: rgba(17, 17, 17, 0.9);
+}
+
+.timeline-toolbar-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 176px;
+}
+
+.timeline-toolbar-title strong {
+  color: var(--text-display);
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.track-add {
+  position: relative;
+}
+
+.track-add-menu {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  z-index: 45;
+  display: grid;
+  min-width: 132px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-overlay);
+}
+
+.track-add-menu button {
+  min-height: 36px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  text-align: left;
+  padding: 8px 10px;
+}
+
+.track-add-menu button:last-child {
+  border-bottom: 0;
+}
+
+.track-add-menu button:hover {
+  background: var(--surface-overlay-hover);
+  color: var(--text-display);
+}
+
+.ruler {
+  position: relative;
+  overflow: hidden;
+  height: 22px;
+  border-bottom: 1px solid var(--border-visible);
+  color: var(--text-disabled);
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ruler-ticks {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 176px;
+  right: 0;
+}
+
+.ruler-tick {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left: 1px solid var(--border-visible);
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+.zoom-controls {
+  display: flex;
+  gap: 4px;
+  margin-left: var(--space-sm);
+}
+
+.model-picker-row.kb-active {
+  outline: 2px solid var(--text-display);
+  outline-offset: -2px;
+}
+
+.shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.shortcuts-panel {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 320px;
+  padding: var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-overlay);
+  background: var(--surface-raised);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.shortcut-row kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border-visible);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+}
+
+.tracks {
+  position: relative;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.tracks-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-md);
+  text-align: center;
+  pointer-events: none;
+}
+
+.tracks-empty .button {
+  pointer-events: auto;
+}
+
+.track {
+  display: grid;
+  grid-template-columns: 176px minmax(720px, 1fr);
+  min-height: 64px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tracks.compact .track {
+  min-height: 56px;
+}
+
+.track-label {
+  display: grid;
+  grid-template-rows: 20px 22px 10px;
+  gap: 3px;
+  padding: 4px 6px;
+  border-right: 1px solid var(--border);
+  background: rgba(17, 17, 17, 0.72);
+}
+
+.track-label.muted-track {
+  background: rgba(17, 17, 17, 0.45);
+}
+
+.track-label.solo-track {
+  border-right-color: var(--accent);
+}
+
+.track-head,
+.track-controls,
+.track-level {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.track-controls {
+  min-width: 0;
+}
+
+.track-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  height: 18px;
+  border: 1px solid var(--border-visible);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+}
+
+.track-name-button,
+.track-name-input {
+  min-width: 0;
+  flex: 1;
+  height: 20px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-display);
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.track-name-button {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-name-button:hover,
+.track-name-input:focus {
+  border-color: var(--border-visible);
+  background: var(--surface);
+}
+
+.track-menu-button,
+.track-toggle,
+.track-small {
+  min-width: 26px;
+  min-height: 22px;
+  border: 1px solid var(--border-visible);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+}
+
+.track-menu-button {
+  min-width: 28px;
+}
+
+.track-toggle.active,
+.track-small:hover:not(:disabled) {
+  border-color: var(--text-display);
+  color: var(--text-display);
+}
+
+.track-toggle.active:first-child {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: rgba(212, 168, 67, 0.14);
+}
+
+.track-toggle.active:nth-child(2) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.track-level span {
+  width: 28px;
+  color: var(--text-secondary);
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+}
+
+.track-level input {
+  flex: 1;
+  min-width: 42px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.lane {
+  position: relative;
+  min-height: 64px;
+  background-image: linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: var(--grid, 180px) 100%;
+}
+
+.lane.drag-over {
+  background-color: var(--accent-subtle);
+}
+
+.drop-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--success);
+  pointer-events: none;
+}
+
+.tracks.compact .lane {
+  min-height: 56px;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.playhead::before {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  content: "";
+}
+
+.region-selection {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  z-index: 1;
+  border: 1px solid var(--accent);
+  background: rgba(215, 25, 33, 0.18);
+  pointer-events: none;
+}
+
+.clip {
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+  min-width: 32px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid var(--border-visible);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: grab;
+  text-align: left;
+  touch-action: none;
+}
+
+.tracks.compact .clip {
+  top: 8px;
+  height: 38px;
+}
+
+.clip.selected {
+  border-color: var(--accent);
+}
+
+.clip:active {
+  cursor: grabbing;
+}
+
+.clip-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 8px;
+  background: rgba(215, 25, 33, 0.3);
+  cursor: ew-resize;
+}
+
+.clip-handle.left {
+  left: 0;
+}
+
+.clip-handle.right {
+  right: 0;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  min-width: 180px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-overlay);
+}
+
+.context-menu button {
+  min-height: 28px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 5px 10px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.context-menu button:last-child {
+  border-bottom: 0;
+}
+
+.context-menu button:hover {
+  background: var(--surface-overlay-hover);
+  color: var(--text-display);
+}
+
+.context-menu .danger {
+  color: var(--accent);
+}
+
+.wave {
+  position: absolute;
+  inset: 22px 8px 6px;
+  opacity: 0.82;
+  background:
+    linear-gradient(90deg, var(--text-secondary) 2px, transparent 2px) 0 50% / 8px 34px,
+    linear-gradient(var(--border), var(--border));
+}
+
+.tracks.compact .wave {
+  inset: 20px 8px 6px;
+}
+
+.wave-svg {
+  background: none;
+  color: var(--text-secondary);
+}
+
+.wave-svg rect {
+  fill: currentColor;
+}
+
+.clip-name {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+  padding: 4px 8px;
+  color: var(--text-display);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,45 @@
+# Dependencies and build output
+node_modules
+.next
+dist
+coverage
+*.tsbuildinfo
+
+# Repository and environment state
+.git
+.github
+.env
+.env.*
+!.env.example
+
+# Tests and local tooling
+**/*.test.ts
+**/*.test.tsx
+test-results
+playwright-report
+.claude/
+.playwright-mcp/
+
+# Private distribution and production tooling
+distribution/
+promo/
+scripts/
+public/_archive/
+
+# Local logs and generated artifacts
+*.log
+logs/
+artifacts/
+generated/
+output/
+outputs/
+docs/
+/*.gif
+/*.jpeg
+/*.jpg
+/*.mov
+/*.mp3
+/*.mp4
+/*.png
+/*.wav
+/*.webp

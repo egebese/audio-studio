@@ -163,6 +163,15 @@ export function lintPrompt(modelId: string, prompt: string): PromptLintResult {
   if (modelId === "seed-cast-scene" && /@Audio\d+/.test(prompt) && !/voiced by @Audio\d+/.test(prompt)) {
     warnings.push("Cast scenes must tag every spoken line with voiced by @AudioN.");
   }
+  if (modelId === "seed-tts" && !accentTerms.some((term) => lower.includes(term))) {
+    warnings.push("Seed TTS prompts should include an explicit accent in the voice spec.");
+  }
+  if (modelId === "seed-tts" && !/"[^"]+"/.test(prompt)) {
+    warnings.push("Seed TTS prompts should carry the spoken text in quotes after the voice spec.");
+  }
+  if (modelId === "seed-tts" && /\[[^\]]+\]/.test(prompt)) {
+    warnings.push("Plain TTS should not include bracketed scene, music, or SFX cues.");
+  }
   if (vagueAudioTerms.some((term) => lower.trim() === term || lower.includes(`[${term}]`))) {
     warnings.push("Name SFX and music concretely instead of using generic labels.");
   }
@@ -181,6 +190,11 @@ export function enhancePrompt(modelId: string, raw: string, voiceNames: string[]
   if (model?.task === "scene") {
     const voices = voiceRoster(raw, voiceNames);
     return voices.length > 0 ? buildSeedCastPrompt(text, voices) : buildSeedScenePrompt(text);
+  }
+
+  if (model?.id === "seed-tts") {
+    const line = text.replace(/"/g, "'");
+    return `The narrator (middle-aged male, American accent, warm resonant, calm, measured) narrates: "${line}"`;
   }
 
   if (model?.task === "sfx") {

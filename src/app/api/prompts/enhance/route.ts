@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import { getModel } from "@/lib/model-catalog";
+import { cleanModelOutput, extractText } from "@/lib/llm-text";
 import { lintPrompt } from "@/lib/prompt-intelligence";
+import { requireStudioApiAuth } from "@/lib/self-host-auth";
 
 const seedSceneSystem = `You are a prompt engineer for bytedance/seed-audio-1.0 scene prompts.
 Turn the user's loose request into ONE finished audio scene prompt only. No markdown. No explanation.
@@ -23,32 +25,32 @@ Hard rules:
 - If reference voices are listed as @Audio1, @Audio2, every spoken line by that speaker must include "voiced by @AudioN".
 Output the final scene prompt only.`;
 
+const seedTtsSystem = `You are a prompt engineer for bytedance/seed-audio-1.0 plain speech prompts (no music, no SFX, no ambience).
+Turn the user's raw text or loose request into ONE finished speech prompt. Output the prompt only. No markdown. No explanation.
+Format (always this shape, repeated per spoken segment):
+Speaker (gender, age, ACCENT, timbre, single emotion, pace) <delivery verb>: "Line."
+Hard rules:
+- 2048 characters max. Target under ~2 minutes of speech. English or Chinese only.
+- Speech only: no background music, no ambience, no sound effects, no bracketed scene cues of any kind.
+- Default is ONE speaker. BUT if the user's request describes multiple speakers, segments, or handoffs, include EVERY requested speaker in the requested order. NEVER drop, merge, or reorder requested speakers or segments.
+- Every speaker keeps parenthesized voice attributes with an explicit accent (American accent, British accent, neutral accent, ...) EVERY time they speak. Never write "no accent" or other negative voice instructions.
+- Preserve requested roles, segment order, gender, and character identity details. If race or ethnicity is requested, keep it as character identity, not as an accent: "sports reporter which is also black male" becomes "The sports reporter (young adult Black male, American accent, ...)".
+- Each speaker keeps ONE consistent emotion, timbre, and pace.
+- If the user supplies exact text to speak, keep their wording verbatim inside the quotes (fix only obvious typos). If it is a loose idea or only describes the structure, write short finished lines for every requested segment.
+- No famous people, public figures, copyrighted characters, branded IP, or imitation requests. Invent original speakers.
+- If reference voices are listed as @Audio1, @Audio2, ..., every line spoken by that speaker must include "voiced by @AudioN" right after the parenthesized attributes. Treat any "@Name" in the request as that reference voice. Never invent @Audio tags that are not listed.
+- Attribute menu: timbre crystalline/gravelly/raspy/booming/airy/breathy/resonant; emotion calm/grave/playful/tender/exhilarated/weary; pace slow deliberate/measured/medium/fast/clipped; verbs says/narrates/announces/reports/whispers/murmurs/proclaims.
+Example (single voice):
+The narrator (middle-aged male, British accent, warm resonant, calm, measured) narrates: "Every great library begins with a single shelf, and every shelf with a single book."
+Example (requested handoffs — every requested speaker kept, in order):
+The news presenter (middle-aged male, American accent, resonant, composed, medium) announces: "Good evening. Storm cleanup continues across the harbor district — but first, the game everyone is talking about." The sports reporter (young adult Black male, American accent, bright energetic, upbeat, fast) reports: "Thanks, Alan. The Harbor City Comets pulled off a stunner tonight, thirty-one to twenty-eight in the final second." The weather presenter (adult female, American accent, warm clear, friendly, measured) says: "And that winning streak comes with sunshine — clear skies and a mild breeze through the weekend."
+Output the finished prompt only.`;
+
 const genericAudioSystem = `Rewrite the user's loose audio request into one concise production-ready prompt for the selected audio model.
 Output the prompt only. Preserve intent, remove typos, add concrete sonic details, avoid famous people, copyrighted characters, branded IP, and imitation requests.`;
 
-function cleanModelOutput(text: string): string {
-  return text
-    .trim()
-    .replace(/^```[a-z]*\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-}
-
 function removeUnusedVoiceTags(prompt: string): string {
   return prompt.replace(/\s*voiced by @Audio\d+/g, "").replace(/\s*@Audio\d+/g, "");
-}
-
-function extractText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map(extractText).find(Boolean) ?? "";
-  if (!value || typeof value !== "object") return "";
-
-  const record = value as Record<string, unknown>;
-  for (const key of ["output", "text", "response", "content", "message", "data"]) {
-    const text = extractText(record[key]);
-    if (text) return text;
-  }
-  return extractText(record.choices);
 }
 
 async function runFalLlm(system: string, user: string): Promise<string> {
@@ -85,6 +87,9 @@ async function runOpenAi(system: string, user: string, apiKey: string): Promise<
 }
 
 export async function POST(request: Request) {
+  const unauthorized = requireStudioApiAuth(request);
+  if (unauthorized) return unauthorized;
+
   const body = (await request.json().catch(() => null)) as
     | { modelId?: string; raw?: string; voiceNames?: string[] }
     | null;
@@ -109,7 +114,8 @@ export async function POST(request: Request) {
   const voices = voiceNames.length
     ? `\nVOICES: [${voiceNames.map((name, i) => `@Audio${i + 1} = ${name}`).join(", ")}]`
     : "";
-  const system = model.task === "scene" ? seedSceneSystem : genericAudioSystem;
+  const system =
+    model.task === "scene" ? seedSceneSystem : model.id === "seed-tts" ? seedTtsSystem : genericAudioSystem;
   const user = `MODEL: ${model.label} / ${model.task}${voices}\nREQUEST: ${body.raw}`;
 
   try {

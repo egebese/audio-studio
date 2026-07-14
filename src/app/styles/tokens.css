@@ -1,0 +1,77 @@
+:root {
+  --black: #000000;
+  --surface: #111111;
+  --surface-raised: #1a1a1a;
+  --surface-overlay: #202020;
+  --surface-overlay-hover: #2a2a2a;
+  --border: #222222;
+  --border-visible: #333333;
+  --border-strong: #404040;
+  /* Elevation: higher surfaces are lighter (black page → #111 panel → #1a raised → #202020 overlay). */
+  /* z-index scale: 1-5 timeline internals · 45-50 context/dropdown menus · 60 topbar popovers · 90 model picker · 95 toast · 100 modal overlays */
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --text-disabled: #666666;
+  --text-secondary: #999999;
+  --text-primary: #e8e8e8;
+  --text-display: #ffffff;
+  --accent: #d71921;
+  --accent-subtle: rgba(215, 25, 33, 0.16);
+  --success: #4a9e5c;
+  --warning: #d4a843;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  color-scheme: dark;
+
+  /* shadcn theme bridge — maps shadcn tokens onto the Nothing palette (dark-only) */
+  --background: var(--black);
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-overlay);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--text-display);
+  --primary-foreground: var(--black);
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-raised);
+  --muted-foreground: var(--text-secondary);
+  --accent-shadcn: var(--surface-raised);
+  --accent-foreground: var(--text-display);
+  --destructive: var(--accent);
+  --destructive-foreground: var(--text-display);
+  --input: var(--border-visible);
+  --ring: var(--accent);
+  --radius: 8px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-shadcn);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "Space Mono", "JetBrains Mono", monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}

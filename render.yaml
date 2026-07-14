@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: audio-studio
+    runtime: docker
+    repo: https://github.com/fal-ai-community/audio-studio
+    plan: starter
+    numInstances: 1
+    autoDeployTrigger: 'off'
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FAL_KEY
+        sync: false
+      - key: STUDIO_PASSWORD
+        sync: false
+      - key: STUDIO_SESSION_SECRET
+        generateValue: true

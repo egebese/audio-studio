@@ -5,7 +5,10 @@ import { lintPrompt } from "@/lib/prompt-intelligence";
 import { normalizeModelOutput } from "@/lib/result";
 import type { Job, ModelOutput } from "@/lib/types";
 
-const jobs = new Map<string, Job>();
+// Cached on globalThis: Next.js dev compiles each API route separately, so a plain
+// module-level Map would give POST /api/jobs and GET /api/jobs/[id] different stores.
+const globalStore = globalThis as typeof globalThis & { __audioStudioJobs?: Map<string, Job> };
+const jobs = globalStore.__audioStudioJobs ?? (globalStore.__audioStudioJobs = new Map<string, Job>());
 const seedReferenceMaxSeconds = 30;
 const seedBaseInputKeys = new Set([
   "prompt",
@@ -157,6 +160,34 @@ function compactText(value: unknown): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
+// fal ApiErrors often carry an empty .message with the real cause in body.detail — surface it.
+export function describeJobError(error: unknown): string {
+  if (error && typeof error === "object") {
+    const err = error as { message?: unknown; status?: unknown; body?: { detail?: unknown } };
+    const detail = err.body?.detail;
+    const detailText = Array.isArray(detail)
+      ? detail
+          .map((item) => {
+            if (item && typeof item === "object") {
+              const rec = item as { msg?: unknown; loc?: unknown };
+              const loc = Array.isArray(rec.loc) ? rec.loc.join(".") : "";
+              return [loc, rec.msg].filter(Boolean).join(": ");
+            }
+            return String(item);
+          })
+          .join("; ")
+      : typeof detail === "string"
+        ? detail
+        : "";
+    const message = typeof err.message === "string" ? err.message.trim() : "";
+    const status = typeof err.status === "number" ? `HTTP ${err.status}` : "";
+    const parts = [message, detailText, !message && !detailText ? "" : status].filter(Boolean);
+    if (parts.length) return parts.join(" — ");
+    if (status) return status;
+  }
+  return String(error);
+}
+
 function sanitizeDirective(value: unknown): string {
   return compactText(value).replace(/\b(ignore|say|repeat after me)\b/gi, "").trim();
 }
@@ -167,7 +198,7 @@ function audioUrlFrom(input: Record<string, unknown>): string {
   return source;
 }
 
-async function transcribeSource(audioUrl: string): Promise<string> {
+async function transcribeSource(audioUrl: string, language?: string): Promise<string> {
   const asr = getModel("whisper-asr");
   if (!asr) throw new Error("Whisper ASR model is not configured");
   const result = await fal.subscribe(asr.endpoint, {
@@ -175,7 +206,8 @@ async function transcribeSource(audioUrl: string): Promise<string> {
       audio_url: audioUrl,
       task: "transcribe",
       diarize: true,
-      chunk_level: "segment"
+      chunk_level: "segment",
+      ...(language ? { language } : {})
     }
   });
   const transcript = normalizeModelOutput(result.data)[0]?.transcript;
@@ -194,7 +226,7 @@ async function buildSeedPipelineInput(modelId: string, input: Record<string, unk
   const output_format = String(input.output_format ?? "wav");
   const source = typeof input.source_audio_url === "string" ? input.source_audio_url : typeof input.audio_url === "string" ? input.audio_url : "";
 
-  if (modelId === "seed-scene" || modelId === "seed-cast-scene" || modelId === "seed-image-voice") {
+  if (modelId === "seed-scene" || modelId === "seed-cast-scene" || modelId === "seed-tts" || modelId === "seed-image-voice") {
     return pickSeedBaseInput(input);
   }
 
@@ -212,9 +244,11 @@ async function buildSeedPipelineInput(modelId: string, input: Record<string, unk
   if (modelId === "seed-voice-changer") {
     const target = input.target_voice_url;
     if (typeof target !== "string" || !target.trim()) throw new Error("A target voice URL is required");
-    const transcript = await transcribeSource(audioUrlFrom(input));
+    const language = input.language === "zh" ? "zh" : input.language === "en" ? "en" : undefined;
+    const transcript = await transcribeSource(audioUrlFrom(input), language);
+    const pacing = input.preserve_pacing === true ? " Keep the original rhythm, pauses, and timing." : "";
     return {
-      prompt: `@Audio1 ${transcript}`,
+      prompt: `@Audio1 ${transcript}${pacing}`,
       audio_urls: [target],
       sample_rate,
       output_format
@@ -222,8 +256,13 @@ async function buildSeedPipelineInput(modelId: string, input: Record<string, unk
   }
 
   if (modelId === "seed-dub") {
+    const sourceSeconds = Number(input.source_duration_s);
+    const fit =
+      input.fit_to_length !== false && Number.isFinite(sourceSeconds) && sourceSeconds > 0
+        ? ` Match the original timing of about ${sourceSeconds.toFixed(1)} seconds.`
+        : "";
     return {
-      prompt: `Speak the meaning of @Audio1 in ${sanitizeDirective(input.target_language)}, keeping the same voice and tone.`,
+      prompt: `Speak the meaning of @Audio1 in ${sanitizeDirective(input.target_language)}, keeping the same voice and tone.${fit}`,
       audio_urls: [audioUrlFrom(input)],
       sample_rate,
       output_format
@@ -244,9 +283,17 @@ async function buildSeedPipelineInput(modelId: string, input: Record<string, unk
   if (modelId === "seed-inpaint") {
     const start = Number(input.gap_start_s);
     const end = Number(input.gap_end_s);
-    const fill = sanitizeDirective(input.fill_instruction) || "a natural matching continuation";
+    // Verbatim: speak exact words in the source voice (bypass sanitize so the words survive).
+    // Descriptive (default): the DESCRIPTIVE framing Seed needs so it fills rather than reading the prompt aloud.
+    const exact = compactText(input.fill_instruction);
+    const prompt =
+      input.verbatim === true && exact
+        ? `@Audio1 Reproduce the full recording, but from ${start.toFixed(2)}s to ${end.toFixed(2)}s the speaker says exactly: "${exact}" — in the same voice, so it flows continuously.`
+        : `[Audio repair] @Audio1 has a missing section from ${start.toFixed(2)}s to ${end.toFixed(2)}s. The missing section is ${
+            sanitizeDirective(input.fill_instruction) || "a natural matching continuation"
+          }, preserving the surrounding voice, timing, ambience, and mix.`;
     return {
-      prompt: `[Audio repair] @Audio1 has a missing section from ${start.toFixed(2)}s to ${end.toFixed(2)}s. The missing section is ${fill}, preserving the surrounding voice, timing, ambience, and mix.`,
+      prompt,
       audio_urls: [audioUrlFrom(input)],
       sample_rate,
       output_format
@@ -322,11 +369,12 @@ export async function runJob(jobId: string): Promise<Job> {
       logs: [...readJob(job.id)!.logs, `[done] ${outputs.length} output(s)`]
     });
   } catch (error) {
+    const described = describeJobError(error);
     return updateJob(job.id, {
       status: "error",
       progress: 100,
-      error: error instanceof Error ? error.message : String(error),
-      logs: [...readJob(job.id)!.logs, "[error] model call failed"]
+      error: described,
+      logs: [...readJob(job.id)!.logs, `[error] ${described}`]
     });
   }
 }

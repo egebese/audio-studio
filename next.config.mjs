@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true
+  output: "standalone",
+  reactStrictMode: true,
+  experimental: {
+    optimizePackageImports: ["@lobehub/icons", "lucide-react"]
+  }
 };
 
 export default nextConfig;

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "required": [
+    ".dockerignore",
+    ".env.example",
+    ".gitignore",
+    "Dockerfile",
+    "LICENSE",
+    "README.md",
+    "components.json",
+    "compose.yaml",
+    "install.sh",
+    "next-env.d.ts",
+    "next.config.mjs",
+    "package-lock.json",
+    "package.json",
+    "postcss.config.mjs",
+    "public/featured/**",
+    "public/showcase*.json",
+    "src/**",
+    "tsconfig.json",
+    "vitest.config.ts"
+  ],
+  "optional": [
+    ".node-version",
+    ".nvmrc",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "deploy/fly.toml",
+    "docs/self-hosting.md",
+    "eslint.config.mjs",
+    "railway.json",
+    "render.yaml"
+  ],
+  "largeFiles": [
+    "public/featured/**"
+  ],
+  "maxFileSizeBytes": 2097152,
+  "maxLargeFileSizeBytes": 52428800
+}

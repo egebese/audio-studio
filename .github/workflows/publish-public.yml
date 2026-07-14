@@ -1,0 +1,180 @@
+name: Publish public release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PUBLIC_REPOSITORY: fal-ai-community/audio-studio
+  IMAGE_NAME: ghcr.io/fal-ai-community/audio-studio
+
+jobs:
+  publish-source:
+    name: Verify and publish source
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: public-release
+    steps:
+      - name: Check out the exact release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_tag="v$(node -p "require('./package.json').version")"
+          if [[ "${GITHUB_REF_NAME}" != "${expected_tag}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} must match package version ${expected_tag}." >&2
+            exit 1
+          fi
+
+      - name: Verify private source
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Export the public snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          export_dir="${RUNNER_TEMP}/audio-studio-public"
+          verify_dir="${RUNNER_TEMP}/audio-studio-public-verify"
+          test ! -e "${export_dir}"
+          test ! -e "${verify_dir}"
+          node distribution/export-public.mjs --output "${export_dir}"
+          echo "EXPORT_DIR=${export_dir}" >> "${GITHUB_ENV}"
+          echo "VERIFY_DIR=${verify_dir}" >> "${GITHUB_ENV}"
+
+      - name: Verify exported source and container
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "${VERIFY_DIR}"
+          cp -a "${EXPORT_DIR}/." "${VERIFY_DIR}/"
+          cd "${VERIFY_DIR}"
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+          docker build --tag audio-studio-release-check .
+
+      - name: Store the verified public snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-source-${{ github.ref_name }}
+          path: ${{ env.EXPORT_DIR }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Publish snapshot commit and tag
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN}"
+          public_dir="${RUNNER_TEMP}/public-repository"
+          gh repo clone "${PUBLIC_REPOSITORY}" "${public_dir}"
+
+          if git -C "${public_dir}" ls-remote --exit-code --tags origin \
+            "refs/tags/${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Public tag ${GITHUB_REF_NAME} already exists." >&2
+            echo "Rerun only the failed image job if source publication already succeeded." >&2
+            exit 1
+          fi
+
+          if ! git -C "${public_dir}" rev-parse --verify HEAD >/dev/null 2>&1; then
+            git -C "${public_dir}" checkout --orphan main
+          fi
+
+          rsync -a --delete --exclude=".git/" "${EXPORT_DIR}/" "${public_dir}/"
+          git -C "${public_dir}" add --all
+          git -C "${public_dir}" \
+            -c user.name="audio-studio-release" \
+            -c user.email="audio-studio-release@users.noreply.github.com" \
+            commit -m "Release ${GITHUB_REF_NAME}"
+          git -C "${public_dir}" \
+            -c user.name="audio-studio-release" \
+            -c user.email="audio-studio-release@users.noreply.github.com" \
+            tag --annotate "${GITHUB_REF_NAME}" \
+            --message "Release ${GITHUB_REF_NAME}"
+          git -C "${public_dir}" push --atomic origin \
+            "HEAD:refs/heads/main" \
+            "refs/tags/${GITHUB_REF_NAME}"
+
+  publish-image:
+    name: Publish multi-architecture image
+    needs: publish-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: public-release
+    permissions:
+      contents: read
+    steps:
+      - name: Download verified public source
+        uses: actions/download-artifact@v4
+        with:
+          name: public-source-${{ github.ref_name }}
+          path: public-source
+
+      - name: Resolve registry user
+        id: public-user
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          login="$(gh api user --jq .login)"
+          test -n "${login}"
+          echo "login=${login}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ steps.public-user.outputs.login }}
+          password: ${{ secrets.PUBLIC_REPO_TOKEN }}
+
+      - name: Create image metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: public-source
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}

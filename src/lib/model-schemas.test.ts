@@ -35,11 +35,17 @@ describe("model schemas", () => {
     expect(coerceSchemaInput("eleven-sfx", {}).errors[0]).toMatch(/SFX prompt is required/);
     expect(
       coerceSchemaInput("seed-dub", {
-        target_language: "Spanish",
+        target_language: "English",
         mode: "faithful",
         source_audio_url: "https://example.com/source.wav"
       }).errors[0]
     ).toMatch(/Mode must be one of: fast/);
+    expect(
+      coerceSchemaInput("seed-dub", {
+        target_language: "Spanish",
+        source_audio_url: "https://example.com/source.wav"
+      }).errors[0]
+    ).toMatch(/Target language must be one of: English, Chinese/);
   });
 
   it("returns hidden fal defaults for Seed use cases", () => {

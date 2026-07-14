@@ -23,6 +23,12 @@ export interface ModelSchemaField {
   advanced?: boolean;
   clientOnly?: boolean;
   hidden?: boolean;
+  /* Slider rendering (number/integer): both min and max present → range control. */
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  maxLength?: number;
 }
 
 export interface ModelSchema {
@@ -57,6 +63,14 @@ const voiceContextFields: ModelSchemaField[] = [
   { name: "voices", label: "Voice references", type: "json", hidden: true }
 ];
 
+/* Lets @mention voice references survive schema coercion on prompt-only seed models. */
+const mentionAudioField: ModelSchemaField = {
+  name: "audio_urls",
+  label: "Audio reference URLs",
+  type: "array",
+  hidden: true
+};
+
 const regionContextFields: ModelSchemaField[] = [
   { name: "gap_start_s", label: "Gap start", type: "number", hidden: true },
   { name: "gap_end_s", label: "Gap end", type: "number", hidden: true }
@@ -68,6 +82,19 @@ const enhanceField: ModelSchemaField = {
   type: "boolean",
   defaultValue: true,
   clientOnly: true
+};
+
+// Client-only "generate N takes" control — runModel fires the job N times and stacks the outputs.
+const variationsField: ModelSchemaField = {
+  name: "variations",
+  label: "Takes",
+  type: "integer",
+  defaultValue: 1,
+  min: 1,
+  max: 3,
+  clientOnly: true,
+  advanced: true,
+  helper: "Render this many alternate takes in one Run to audition, then keep the best."
 };
 
 const elevenOutputFormats = [
@@ -98,8 +125,16 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "prompt", label: "Prompt", type: "textarea", required: true, helper: "Loose idea or final Seed Audio scene prompt." },
+      {
+        name: "prompt",
+        label: "Prompt",
+        type: "textarea",
+        required: true,
+        maxLength: 2048,
+        helper: "Describe the scene loosely — voices, music, ambience. Enhance turns it into a finished Seed Audio prompt. Mention saved voices with @."
+      },
       enhanceField,
+      mentionAudioField,
       ...seedQualityFields
     ]
   },
@@ -108,9 +143,28 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "prompt", label: "Prompt", type: "textarea", required: true },
+      { name: "prompt", label: "Prompt", type: "textarea", required: true, maxLength: 2048, helper: "Scene with your saved voice as a speaker. Mention more voices with @." },
       enhanceField,
       ...voiceContextFields,
+      ...seedQualityFields
+    ]
+  },
+  "seed-tts": {
+    modelId: "seed-tts",
+    endpoint: seedEndpoint,
+    outputAudioPaths: ["audio", "audio_file", "output", "url"],
+    fields: [
+      {
+        name: "prompt",
+        label: "Text",
+        type: "textarea",
+        required: true,
+        maxLength: 2048,
+        helper: "Text to speak, or a loose request; Enhance adds the voice spec. Mention saved voices with @ to clone them."
+      },
+      enhanceField,
+      variationsField,
+      mentionAudioField,
       ...seedQualityFields
     ]
   },
@@ -119,8 +173,8 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "image_url", label: "Image URL", type: "url", required: true, helper: "JPEG, PNG, or WebP reference image URL." },
-      { name: "prompt", label: "Text", type: "textarea", required: true, helper: "Exact line to speak; the image conditions the voice." },
+      { name: "image_url", label: "Reference image", type: "url", required: true, helper: "The face in the image conditions the generated voice. Drop a JPEG, PNG, or WebP here." },
+      { name: "prompt", label: "Text", type: "textarea", required: true, maxLength: 2048, helper: "Exact line to speak; the image conditions the voice." },
       ...seedQualityFields
     ]
   },
@@ -129,19 +183,31 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: "fal-ai/elevenlabs/tts/eleven-v3",
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "text", label: "Text", type: "textarea", required: true },
-      { name: "voice", label: "Voice", type: "string", defaultValue: "Rachel" },
-      { name: "stability", label: "Stability", type: "number", defaultValue: 0.5, advanced: true },
-      { name: "timestamps", label: "Timestamps", type: "boolean", defaultValue: false, advanced: true },
+      { name: "text", label: "Text", type: "textarea", required: true, helper: "The exact text to speak." },
+      { name: "voice", label: "Voice", type: "string", defaultValue: "Rachel", helper: "ElevenLabs voice name, e.g. Rachel, Adam, Bella. Type @ to reuse a saved voice's name." },
+      variationsField,
+      {
+        name: "stability",
+        label: "Stability",
+        type: "number",
+        defaultValue: 0.5,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        advanced: true,
+        helper: "Low = more expressive and varied, high = steadier and more consistent."
+      },
+      { name: "timestamps", label: "Timestamps", type: "boolean", defaultValue: false, advanced: true, helper: "Also return per-character timing data." },
       {
         name: "apply_text_normalization",
         label: "Text normalization",
         type: "enum",
         defaultValue: "auto",
         options: ["auto", "on", "off"],
-        advanced: true
+        advanced: true,
+        helper: "Expands numbers and abbreviations into spoken words."
       },
-      { name: "language_code", label: "Language code", type: "string", advanced: true }
+      { name: "language_code", label: "Language", type: "string", advanced: true, helper: "ISO code like en, tr, de. Leave empty to auto-detect." }
     ]
   },
   "eleven-sfx": {
@@ -149,18 +215,39 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: "fal-ai/elevenlabs/sound-effects/v2",
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "text", label: "SFX prompt", type: "textarea", required: true },
+      { name: "text", label: "SFX prompt", type: "textarea", required: true, helper: "Describe the sound, e.g. glass shattering on concrete." },
       enhanceField,
-      { name: "duration_seconds", label: "Duration seconds", type: "number", advanced: true },
-      { name: "loop", label: "Loop", type: "boolean", defaultValue: false, advanced: true },
-      { name: "prompt_influence", label: "Prompt influence", type: "number", defaultValue: 0.3, advanced: true },
+      {
+        name: "duration_seconds",
+        label: "Duration",
+        type: "number",
+        min: 0.5,
+        max: 22,
+        step: 0.5,
+        unit: "s",
+        advanced: true,
+        helper: "Leave empty to let the model pick a natural length."
+      },
+      { name: "loop", label: "Loop", type: "boolean", defaultValue: false, advanced: true, helper: "Make the sound loop seamlessly." },
+      {
+        name: "prompt_influence",
+        label: "Prompt influence",
+        type: "number",
+        defaultValue: 0.3,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        advanced: true,
+        helper: "Higher sticks closer to your text, lower is more creative."
+      },
       {
         name: "output_format",
         label: "Output format",
         type: "enum",
         defaultValue: "mp3_44100_128",
         options: elevenOutputFormats,
-        advanced: true
+        advanced: true,
+        helper: "Codec, sample rate and bitrate of the returned file."
       }
     ]
   },
@@ -169,13 +256,13 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: "fal-ai/stable-audio-25/text-to-audio",
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "prompt", label: "Prompt", type: "textarea", required: true },
+      { name: "prompt", label: "Prompt", type: "textarea", required: true, helper: "Genre, mood, instruments, tempo — e.g. dreamy lo-fi hip hop, 80 BPM." },
       enhanceField,
-      { name: "seconds_total", label: "Duration seconds", type: "integer", defaultValue: 30 },
-      { name: "guidance_scale", label: "Guidance scale", type: "number", defaultValue: 1, advanced: true },
-      { name: "num_inference_steps", label: "Inference steps", type: "integer", defaultValue: 8, advanced: true },
-      { name: "seed", label: "Seed", type: "integer", advanced: true },
-      { name: "sync_mode", label: "Sync mode", type: "boolean", defaultValue: false, advanced: true }
+      { name: "seconds_total", label: "Duration", type: "integer", defaultValue: 30, min: 1, max: 190, unit: "s", helper: "Length of the generated audio." },
+      { name: "guidance_scale", label: "Prompt strength", type: "number", defaultValue: 1, min: 1, max: 25, step: 0.5, advanced: true, helper: "Higher follows the prompt more literally." },
+      { name: "num_inference_steps", label: "Quality steps", type: "integer", defaultValue: 8, min: 4, max: 25, advanced: true, helper: "More steps = higher quality, slower generation." },
+      { name: "seed", label: "Seed", type: "integer", advanced: true, helper: "Same seed + same prompt reproduces the same result." },
+      { name: "sync_mode", label: "Sync mode", type: "boolean", defaultValue: false, advanced: true, helper: "Return the audio in the response instead of a hosted file." }
     ]
   },
   "minimax-music": {
@@ -186,9 +273,10 @@ export const modelSchemas: Record<string, ModelSchema> = {
       { name: "prompt", label: "Style prompt", type: "textarea", required: true, helper: "Style, mood, genre, and scenario." },
       enhanceField,
       { name: "lyrics", label: "Lyrics", type: "textarea", defaultValue: "", helper: "Optional. Use line breaks and tags like [Verse], [Chorus]." },
-      { name: "is_instrumental", label: "Instrumental", type: "boolean", defaultValue: false },
-      { name: "lyrics_optimizer", label: "Lyrics optimizer", type: "boolean", defaultValue: false, advanced: true },
-      { name: "audio_setting", label: "Audio setting JSON", type: "json", advanced: true }
+      { name: "is_instrumental", label: "Instrumental", type: "boolean", defaultValue: false, helper: "Music only, no vocals." },
+      variationsField,
+      { name: "lyrics_optimizer", label: "Lyrics optimizer", type: "boolean", defaultValue: false, advanced: true, helper: "Let the model polish your lyrics before singing them." },
+      { name: "audio_setting", label: "Audio setting JSON", type: "json", advanced: true, helper: "Raw audio settings object passed straight to the model." }
     ]
   },
   mmaudio: {
@@ -196,13 +284,13 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: "fal-ai/mmaudio-v2/text-to-audio",
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "prompt", label: "Prompt", type: "textarea", required: true },
-      { name: "duration", label: "Duration seconds", type: "number", defaultValue: 8 },
-      { name: "negative_prompt", label: "Negative prompt", type: "textarea", defaultValue: "", advanced: true },
-      { name: "cfg_strength", label: "CFG strength", type: "number", defaultValue: 4.5, advanced: true },
-      { name: "num_steps", label: "Steps", type: "integer", defaultValue: 25, advanced: true },
-      { name: "seed", label: "Seed", type: "integer", advanced: true },
-      { name: "mask_away_clip", label: "Mask away clip", type: "boolean", defaultValue: false, advanced: true }
+      { name: "prompt", label: "Prompt", type: "textarea", required: true, helper: "Describe the sound or ambience to generate." },
+      { name: "duration", label: "Duration", type: "number", defaultValue: 8, min: 1, max: 30, unit: "s", helper: "Length of the generated audio." },
+      { name: "negative_prompt", label: "Avoid", type: "textarea", defaultValue: "", advanced: true, helper: "Things the audio should NOT contain, e.g. music, speech." },
+      { name: "cfg_strength", label: "Prompt strength", type: "number", defaultValue: 4.5, min: 1, max: 10, step: 0.5, advanced: true, helper: "Higher follows the prompt more literally." },
+      { name: "num_steps", label: "Quality steps", type: "integer", defaultValue: 25, min: 4, max: 50, advanced: true, helper: "More steps = higher quality, slower generation." },
+      { name: "seed", label: "Seed", type: "integer", advanced: true, helper: "Same seed + same prompt reproduces the same result." },
+      { name: "mask_away_clip", label: "Mask away clip", type: "boolean", defaultValue: false, advanced: true, helper: "Ignore CLIP conditioning for a freer interpretation." }
     ]
   },
   "seed-restyle": {
@@ -210,7 +298,7 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "style", label: "Style", type: "string", required: true, helper: "Example: slow calm whisper." },
+      { name: "style", label: "Style", type: "string", required: true, helper: "Delivery to restyle into, e.g. slow calm whisper." },
       ...sourceContextFields,
       ...seedQualityFields
     ]
@@ -220,8 +308,8 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "language", label: "Language", type: "enum", defaultValue: "en", options: ["en", "zh"] },
-      { name: "preserve_pacing", label: "Preserve pacing", type: "boolean", defaultValue: false },
+      { name: "language", label: "Language", type: "enum", defaultValue: "en", options: ["en", "zh"], helper: "Language of the source speech." },
+      { name: "preserve_pacing", label: "Preserve pacing", type: "boolean", defaultValue: false, helper: "Keep the original rhythm and timing of the speech." },
       ...sourceContextFields,
       ...voiceContextFields,
       ...seedQualityFields
@@ -232,8 +320,9 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "target_language", label: "Target language", type: "enum", required: true, options: ["Spanish", "French", "German", "Japanese", "Chinese", "English"] },
-      { name: "mode", label: "Mode", type: "enum", defaultValue: "fast", options: ["fast"] },
+      { name: "target_language", label: "Target language", type: "enum", required: true, defaultValue: "English", options: ["English", "Chinese"], helper: "Seed Audio dubs reliably to English and Chinese only." },
+      { name: "fit_to_length", label: "Fit to source length", type: "boolean", defaultValue: true, helper: "Ask the model to match the original clip's duration so the dub keeps its slot." },
+      { name: "mode", label: "Mode", type: "enum", defaultValue: "fast", options: ["fast"], advanced: true, helper: "Dubbing pipeline variant." },
       ...sourceContextFields,
       ...seedQualityFields
     ]
@@ -243,8 +332,14 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "add_seconds", label: "Add seconds", type: "integer", defaultValue: 15 },
-      { name: "direction", label: "Direction", type: "string" },
+      {
+        name: "direction",
+        label: "What happens next",
+        type: "textarea",
+        maxLength: 500,
+        helper: "Describe where the continuation should go — a topic or direction, not exact words. Seed Audio keeps the source voice and invents new on-topic speech; it won't read a script. Leave empty to continue naturally."
+      },
+      { name: "add_seconds", label: "Add", type: "integer", defaultValue: 15, min: 1, max: 60, unit: "s", helper: "Roughly how many seconds of new audio to generate." },
       ...sourceContextFields,
       ...seedQualityFields
     ]
@@ -254,7 +349,20 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: seedEndpoint,
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "fill_instruction", label: "Fill instruction", type: "string" },
+      {
+        name: "fill_instruction",
+        label: "What fills the gap",
+        type: "textarea",
+        maxLength: 500,
+        helper: "Describe what belongs in the selected gap — e.g. \"a calm apology\" or \"a suspenseful line\". Descriptive, not a command: Seed Audio generates it in the source voice and won't read your text verbatim. Leave empty to reconstruct naturally."
+      },
+      {
+        name: "verbatim",
+        label: "Speak exact words",
+        type: "boolean",
+        defaultValue: false,
+        helper: "On: the box above is spoken verbatim in the source voice (for a precise name/word fix). Off: it's a description."
+      },
       ...sourceContextFields,
       ...regionContextFields,
       ...seedQualityFields
@@ -265,14 +373,15 @@ export const modelSchemas: Record<string, ModelSchema> = {
     endpoint: "fal-ai/stable-audio-25/audio-to-audio",
     outputAudioPaths: ["audio", "audio_file", "output", "url"],
     fields: [
-      { name: "prompt", label: "Prompt", type: "textarea", required: true },
+      { name: "prompt", label: "Prompt", type: "textarea", required: true, helper: "How the source audio should be transformed." },
+      variationsField,
       ...sourceContextFields,
-      { name: "total_seconds", label: "Duration seconds", type: "number", advanced: true },
-      { name: "strength", label: "Strength", type: "number", defaultValue: 0.8, advanced: true },
-      { name: "guidance_scale", label: "Guidance scale", type: "number", defaultValue: 1, advanced: true },
-      { name: "num_inference_steps", label: "Inference steps", type: "integer", defaultValue: 8, advanced: true },
-      { name: "seed", label: "Seed", type: "integer", advanced: true },
-      { name: "sync_mode", label: "Sync mode", type: "boolean", defaultValue: false, advanced: true }
+      { name: "total_seconds", label: "Duration", type: "number", min: 1, max: 190, unit: "s", advanced: true, helper: "Leave empty to keep the source length." },
+      { name: "strength", label: "Transform strength", type: "number", defaultValue: 0.8, min: 0, max: 1, step: 0.05, advanced: true, helper: "Low keeps the source recognizable, high rewrites it." },
+      { name: "guidance_scale", label: "Prompt strength", type: "number", defaultValue: 1, min: 1, max: 25, step: 0.5, advanced: true, helper: "Higher follows the prompt more literally." },
+      { name: "num_inference_steps", label: "Quality steps", type: "integer", defaultValue: 8, min: 4, max: 25, advanced: true, helper: "More steps = higher quality, slower generation." },
+      { name: "seed", label: "Seed", type: "integer", advanced: true, helper: "Same seed + same prompt reproduces the same result." },
+      { name: "sync_mode", label: "Sync mode", type: "boolean", defaultValue: false, advanced: true, helper: "Return the audio in the response instead of a hosted file." }
     ]
   },
   "whisper-asr": {
@@ -284,10 +393,10 @@ export const modelSchemas: Record<string, ModelSchema> = {
       { name: "diarize", label: "Diarize", type: "hidden", defaultValue: true },
       { name: "chunk_level", label: "Chunk level", type: "hidden", defaultValue: "segment" },
       ...sourceContextFields,
-      { name: "language", label: "Language", type: "string", advanced: true },
-      { name: "num_speakers", label: "Speakers", type: "integer", advanced: true },
-      { name: "batch_size", label: "Batch size", type: "integer", defaultValue: 64, advanced: true },
-      { name: "prompt", label: "Prompt", type: "string", defaultValue: "", advanced: true }
+      { name: "language", label: "Language", type: "string", advanced: true, helper: "ISO code like en, tr. Leave empty to auto-detect." },
+      { name: "num_speakers", label: "Speakers", type: "integer", min: 1, max: 10, advanced: true, helper: "Expected number of distinct speakers. Leave empty to auto-detect." },
+      { name: "batch_size", label: "Batch size", type: "integer", defaultValue: 64, advanced: true, helper: "Processing chunk size; larger is faster but uses more memory." },
+      { name: "prompt", label: "Vocabulary hint", type: "string", defaultValue: "", advanced: true, helper: "Names and jargon to help the transcriber spell correctly." }
     ]
   }
 };

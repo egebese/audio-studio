@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
+import { requireStudioApiAuth } from "@/lib/self-host-auth";
 import { createJob, listJobs, runJob, validateJobRequest } from "@/server/jobs";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const unauthorized = requireStudioApiAuth(request);
+  if (unauthorized) return unauthorized;
   return NextResponse.json({ jobs: listJobs() });
 }
 
 export async function POST(request: Request) {
+  const unauthorized = requireStudioApiAuth(request);
+  if (unauthorized) return unauthorized;
+
   const body = (await request.json().catch(() => null)) as
     | {
         modelId?: string;
@@ -29,6 +35,7 @@ export async function POST(request: Request) {
     input: body.input ?? {},
     sourceAssetIds: body.sourceAssetIds ?? []
   });
-  const finished = await runJob(job.id);
-  return NextResponse.json({ job: finished });
+  // ponytail: fire-and-forget suits the local dev server; use waitUntil if this ever deploys serverless
+  void runJob(job.id);
+  return NextResponse.json({ job });
 }

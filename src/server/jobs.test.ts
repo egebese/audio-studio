@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { fal } from "@fal-ai/client";
-import { buildProviderInput, createJob, runJob, validateJobRequest } from "./jobs";
+import { buildProviderInput, createJob, describeJobError, runJob, validateJobRequest } from "./jobs";
 
 vi.mock("@fal-ai/client", () => ({
   fal: {
@@ -78,7 +78,7 @@ describe("job state", () => {
         modelId: "seed-dub",
         operation: "dub",
         input: {
-          target_language: "Spanish",
+          target_language: "English",
           mode: "faithful",
           source_audio_url: "https://example.com/source.wav"
         }
@@ -169,5 +169,19 @@ describe("job state", () => {
       sample_rate: 48000,
       output_format: "wav"
     });
+  });
+});
+
+describe("describeJobError", () => {
+  it("keeps plain Error messages", () => {
+    expect(describeJobError(new Error("boom"))).toBe("boom");
+  });
+
+  it("surfaces fal validation detail when message is empty", () => {
+    const apiError = Object.assign(new Error(""), {
+      status: 422,
+      body: { detail: [{ loc: ["body", "audio_url"], msg: "Field required" }] }
+    });
+    expect(describeJobError(apiError)).toBe("body.audio_url: Field required — HTTP 422");
   });
 });

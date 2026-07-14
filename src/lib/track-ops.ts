@@ -116,3 +116,22 @@ export function audibleTrackIds(tracks: Track[]): Set<string> {
 export function isTrackAudible(track: Track, tracks: Track[]): boolean {
   return audibleTrackIds(tracks).has(track.id);
 }
+
+export interface PlaybackClipRef {
+  trackId: string;
+  gain: number;
+  start: number;
+  end: number;
+  fadeIn: number;
+  fadeOut: number;
+}
+
+// Live mix: a scheduled clip's volume at `seconds`, honoring mute/solo, track gain,
+// and fade envelopes against the CURRENT track state — so toggles apply mid-playback.
+export function playbackClipVolume(clip: PlaybackClipRef, tracks: Track[], seconds: number): number {
+  const track = tracks.find((item) => item.id === clip.trackId);
+  if (!track || !isTrackAudible(track, tracks)) return 0;
+  const fadeIn = clip.fadeIn > 0 ? Math.min(1, (seconds - clip.start) / clip.fadeIn) : 1;
+  const fadeOut = clip.fadeOut > 0 ? Math.min(1, (clip.end - seconds) / clip.fadeOut) : 1;
+  return Math.max(0, Math.min(1, clip.gain * track.gain * Math.min(fadeIn, fadeOut)));
+}

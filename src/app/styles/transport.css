@@ -1,0 +1,95 @@
+.transport-readout {
+  width: 148px;
+  flex-shrink: 0;
+}
+
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.transport-button {
+  min-width: 40px;
+  min-height: 30px;
+  border: 1px solid var(--border-visible);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transport-button.primary {
+  min-width: 56px;
+  border-color: var(--text-display);
+  background: var(--text-display);
+  color: var(--black);
+}
+
+.scrub {
+  flex: 1;
+  min-width: 180px;
+  accent-color: var(--accent);
+}
+
+.status {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.status.ok {
+  color: var(--success);
+}
+
+.status.warn {
+  color: var(--warning);
+}
+
+.status.err {
+  color: var(--accent);
+}
+
+.status.blink {
+  animation: status-blink 1s steps(2, start) infinite;
+}
+
+@keyframes status-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.toast {
+  position: fixed;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 95;
+  max-width: min(560px, calc(100vw - 48px));
+  padding: 10px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-overlay);
+  color: var(--text-primary);
+  font-family: "Space Mono", "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.toast.ok {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.toast.err {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---- v4: standardized generate fields, tooltips, mentions, uploads ---- */

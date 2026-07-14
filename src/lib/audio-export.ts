@@ -59,9 +59,18 @@ export async function renderTimelineToWav(input: {
       const source = offline.createBufferSource();
       const gain = offline.createGain();
       source.buffer = decoded;
-      gain.gain.value = clip.gain * track.gain;
+      const base = clip.gain * track.gain;
+      const playable = Math.min(clip.duration, decoded.duration - clip.offset);
+      const fadeIn = Math.min(Math.max(0, clip.fadeIn), playable / 2);
+      const fadeOut = Math.min(Math.max(0, clip.fadeOut), playable / 2);
+      gain.gain.setValueAtTime(fadeIn > 0 ? 0 : base, clip.start);
+      if (fadeIn > 0) gain.gain.linearRampToValueAtTime(base, clip.start + fadeIn);
+      if (fadeOut > 0) {
+        gain.gain.setValueAtTime(base, clip.start + Math.max(fadeIn, playable - fadeOut));
+        gain.gain.linearRampToValueAtTime(0, clip.start + playable);
+      }
       source.connect(gain).connect(offline.destination);
-      source.start(clip.start, clip.offset, Math.min(clip.duration, decoded.duration - clip.offset));
+      source.start(clip.start, clip.offset, playable);
     })
   );
 

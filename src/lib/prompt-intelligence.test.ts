@@ -23,6 +23,29 @@ describe("prompt intelligence", () => {
     expect(enhancePrompt("eleven-sfx", "glass shatter")).toContain("natural decay");
   });
 
+  it("turns plain text into a Seed TTS voice-spec prompt", () => {
+    const prompt = enhancePrompt("seed-tts", "Every great library begins with a single shelf.");
+    expect(prompt).toContain("American accent");
+    expect(prompt).toMatch(/"[^"]+"$/);
+    expect(prompt).not.toMatch(/\[[^\]]+\]/);
+  });
+
+  it("lints Seed TTS prompts for accent, quotes, and stray scene cues", () => {
+    expect(lintPrompt("seed-tts", 'A speaker says: "Hello there."').warnings).toContain(
+      "Seed TTS prompts should include an explicit accent in the voice spec."
+    );
+    expect(lintPrompt("seed-tts", "The narrator (American accent) reads the news.").warnings).toContain(
+      "Seed TTS prompts should carry the spoken text in quotes after the voice spec."
+    );
+    expect(
+      lintPrompt("seed-tts", '[soft music] The narrator (American accent, calm) says: "Hi."').warnings
+    ).toContain("Plain TTS should not include bracketed scene, music, or SFX cues.");
+    expect(
+      lintPrompt("seed-tts", 'The narrator (middle-aged male, American accent, warm resonant, calm, measured) says: "Hello."')
+        .warnings
+    ).toEqual([]);
+  });
+
   it("turns loose Seed scene ideas into finished scene prompts", () => {
     const prompt = enhancePrompt(
       "seed-scene",

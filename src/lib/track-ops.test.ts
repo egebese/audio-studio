@@ -7,6 +7,7 @@ import {
   moveTrack,
   renameTrack,
   setTrackGain,
+  playbackClipVolume,
   toggleTrackMute,
   toggleTrackSolo
 } from "./track-ops";
@@ -61,5 +62,29 @@ describe("track operations", () => {
       trackId: "voice_copy",
       assetId: "asset1"
     });
+  });
+});
+
+describe("playbackClipVolume", () => {
+  const ref = { trackId: "music", gain: 0.5, start: 0, end: 10, fadeIn: 0, fadeOut: 0 };
+
+  it("multiplies clip and track gain for audible tracks", () => {
+    expect(playbackClipVolume(ref, tracks, 5)).toBeCloseTo(0.5 * 0.8);
+  });
+
+  it("returns 0 when the track is muted or another track is soloed", () => {
+    const muted = toggleTrackMute(tracks, "music");
+    expect(playbackClipVolume(ref, muted, 5)).toBe(0);
+    const soloed = toggleTrackSolo(tracks, "voice");
+    expect(playbackClipVolume(ref, soloed, 5)).toBe(0);
+    // unmuting/unsoloing restores mid-playback
+    expect(playbackClipVolume(ref, toggleTrackSolo(soloed, "voice"), 5)).toBeCloseTo(0.4);
+  });
+
+  it("applies fade envelopes at the clip edges", () => {
+    const faded = { ...ref, trackId: "voice", gain: 1, fadeIn: 2, fadeOut: 2 };
+    expect(playbackClipVolume(faded, tracks, 1)).toBeCloseTo(0.5); // halfway into fade-in
+    expect(playbackClipVolume(faded, tracks, 9)).toBeCloseTo(0.5); // halfway into fade-out
+    expect(playbackClipVolume(faded, tracks, 5)).toBe(1);
   });
 });
