@@ -11,6 +11,7 @@ playwright-report
 
 # Local agent and browser state
 .claude/
+.agents/
 .playwright-mcp/
 
 # Internal production tooling and archived media
