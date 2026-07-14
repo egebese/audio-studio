@@ -437,7 +437,7 @@ describePrivate("container host deployment artifacts", () => {
   it("pins Render to one always-on Docker instance with required secrets", async () => {
     const render = await readRootFile("render.yaml");
 
-    expect(render).toContain("repo: https://github.com/fal-ai-community/audio-studio");
+    expect(render).not.toMatch(/^\s*repo:/m);
     expect(render).toMatch(/runtime:\s*docker/);
     expect(render).toMatch(/plan:\s*starter/);
     expect(render).toMatch(/numInstances:\s*1/);
@@ -498,9 +498,7 @@ describePrivate("container host deployment artifacts", () => {
     ]);
     const docs = `${readme}\n${guide}`;
 
-    expect(readme).toContain(
-      "https://github.com/fal-ai-community/audio-studio"
-    );
+    expect(readme).toContain("https://github.com/egebese/audio-studio");
     expect(readme).toContain("https://render.com/deploy?repo=");
     expect(docs).toMatch(/\.\/install\.sh/);
     expect(docs).toMatch(/docker compose pull/);

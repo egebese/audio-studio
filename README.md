@@ -48,8 +48,8 @@ HTTPS, upgrades, Render, Railway, Fly.io, storage behavior, and troubleshooting.
 
 - The Next.js server handles authentication and wraps fal model jobs.
 - The browser stores the project graph in IndexedDB.
-- Audio remains remote, so there is no project database or persistent container
-  volume to provision.
+- Audio normally uses fal.storage; failed uploads may remain browser-local.
+- There is no project database or persistent container volume to provision.
 - Generated and transformed assets preserve immutable lineage instead of
   overwriting their sources.
 - Active jobs live in server memory, which requires one always-on process and

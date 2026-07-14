@@ -2,7 +2,6 @@ services:
   - type: web
     name: audio-studio
     runtime: docker
-    repo: https://github.com/fal-ai-community/audio-studio
     plan: starter
     numInstances: 1
     autoDeployTrigger: 'off'
